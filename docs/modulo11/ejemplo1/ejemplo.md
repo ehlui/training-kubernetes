@@ -1,6 +1,6 @@
 # Ejemplo 1 - Gestionand un usuario sencillo
 
-El objetivo es crear un nuevo usuario en nuestro cluster, registrarlo y poder comprobar como funciona el RBAC con este usuario.
+El objetivo es crear un nuevo usuario en nuestro cluster, registrarlo y poder comprobar como funciona el RBAC con este usuario creando roles y haciendo el binding.
 
 Como estamos usando un entorno local como minikube, no es necesario firmar el certificado usando el CSR (CertificateSigningRequest) del cluster, podemos hacerlo directamente con OpenSSL usando la CA de Minikube.
 
@@ -75,3 +75,43 @@ If we try to list the pods in the current context we might see this message belo
 
 > Error from server (Forbidden): pods is forbidden: User "employee" cannot list resource "pods" in API group "" in the namespace "office"
 
+Note:
+- We can assert by reading the error that our user is trying to run "list" on the resource "pod" in the api group "" in the specific namespace. We could createm a basic role to just list pods.
+
+7. Create a role to only list pods in the office namespace
+
+```yaml
+# Role definition
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: office
+  name: manage-pods
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+```
+
+Now, our user still without having access to list pods, because we need to **bind** this role to the user.
+
+8. Binding a role
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: office
+  name: manage-pods
+subjects:
+  - kind: User
+      # Here we have to use the name we set in the cert. If we used a full name like "Albert XYZ" we should use it here to select it.
+    # But here we need to match the name from the cert we created previously.
+    name: "employee"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+    kind: Role
+    name: manage-pods
+    apiGroup: rbac.authorization.k8s.io
+```
